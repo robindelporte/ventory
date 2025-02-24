@@ -17,7 +17,7 @@ A JavaScript plugin that adds logarithmic progression to Finsweet's range slider
 Add this script to your project's custom code section, before the closing `</body>` tag in your Webflow project settings:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.6/logarithmic-slider.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.7/logarithmic-slider.js"></script>
 ```
 
 ## Usage
@@ -46,6 +46,19 @@ You can define multiple values in your scale to create visual reference points:
 
 The slider will still allow continuous selection between 0 and 10000, but now you have visual markers at the specified points (2000, 4000, etc.).
 
+### Example with Large Numbers
+
+For large value ranges with visual markers:
+
+```html
+<div fs-rangeslider-element="wrapper" 
+     data-log-slider-scale="[10,100,1000,10000,100000,1000000]">
+    <!-- Standard Finsweet range slider structure -->
+</div>
+```
+
+This will display: "10", "100", "1.000", "10.000", "100.000", "1M"
+
 ### Optional Currency Display
 
 To add a currency symbol to the values:
@@ -71,6 +84,22 @@ To show the current value, use Finsweet's display value element:
 
 ```html
 <div fs-rangeslider-element="display-value"></div>
+```
+
+## Number Formatting
+
+The slider automatically formats numbers for better readability:
+- Thousands are separated with dots (e.g., "1.000", "10.000", "100.000")
+- Millions are abbreviated with "M" (e.g., "1M" instead of "1.000.000")
+- Values over a million are formatted with one decimal if needed (e.g., "1.5M")
+
+Examples:
+```
+1000 → 1.000
+10000 → 10.000
+100000 → 100.000
+1000000 → 1M
+1500000 → 1.5M
 ```
 
 ## Requirements
