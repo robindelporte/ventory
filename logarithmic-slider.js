@@ -23,14 +23,48 @@ class LogarithmicSlider {
   getValuesFromAttribute(wrapper) {
     // Lire les valeurs depuis l'attribut data
     const scaleAttr = wrapper.getAttribute(`${this.attributePrefix}-scale`);
-    if (!scaleAttr) return [1, 10, 100, 1000, 10000]; // Échelle par défaut
-
+    const defaultScale = [1, 10, 100, 1000, 10000];
+    
     try {
-      return JSON.parse(scaleAttr);
+      const scale = scaleAttr ? JSON.parse(scaleAttr) : defaultScale;
+      return {
+        markers: scale,
+        min: scale[0],
+        max: scale[scale.length - 1]
+      };
     } catch (e) {
       console.error('Invalid scale format:', scaleAttr);
-      return [1, 10, 100, 1000, 10000];
+      return {
+        markers: defaultScale,
+        min: defaultScale[0],
+        max: defaultScale[defaultScale.length - 1]
+      };
     }
+  }
+
+  // Fonction pour convertir une position linéaire en valeur logarithmique
+  calculateLogarithmicValue(position, min, max) {
+    // Éviter log(0)
+    min = min <= 0 ? 0.1 : min;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const scale = (maxLog - minLog);
+    
+    return Math.exp(minLog + scale * position);
+  }
+
+  // Fonction inverse pour convertir une valeur en position
+  calculateLogarithmicPosition(value, min, max) {
+    // Éviter log(0)
+    min = min <= 0 ? 0.1 : min;
+    value = value <= 0 ? 0.1 : value;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const valueLog = Math.log(value);
+    
+    return (valueLog - minLog) / (maxLog - minLog);
   }
 
   getCurrencyFromAttribute(wrapper) {
@@ -58,31 +92,31 @@ class LogarithmicSlider {
       return;
     }
 
-    // Configurer l'input
+    // Configurer l'input pour une progression continue
     if (elements.input) {
       Object.assign(elements.input, {
         min: 0,
-        max: values.length - 1,
-        step: 1,
+        max: 1,
+        step: 0.001, // Pour une progression fluide
         value: 0
       });
     }
 
     // État initial
     let isDragging = false;
-    let currentValue = 0;
+    let currentPosition = 0;
 
     // Mettre à jour l'interface
-    const updateUI = (index) => {
-      const percentage = (index / (values.length - 1)) * 100;
-      const value = values[index];
+    const updateUI = (position) => {
+      const percentage = position * 100;
+      const value = Math.round(this.calculateLogarithmicValue(position, values.min, values.max));
       
       elements.handle.style.left = `${percentage}%`;
       if (elements.fill) elements.fill.style.width = `${percentage}%`;
       if (elements.display) elements.display.textContent = currency ? `${value}${currency}` : value;
-      if (elements.input) elements.input.value = index;
+      if (elements.input) elements.input.value = position;
       
-      currentValue = index;
+      currentPosition = position;
 
       // Déclencher un événement personnalisé
       wrapper.dispatchEvent(new CustomEvent('sliderChange', { 
@@ -101,8 +135,7 @@ class LogarithmicSlider {
       const rect = elements.track.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const percentage = x / rect.width;
-      const index = Math.round(percentage * (values.length - 1));
-      updateUI(Math.max(0, Math.min(values.length - 1, index)));
+      updateUI(Math.max(0, Math.min(1, percentage)));
     };
 
     const handleDrag = (e) => {
