@@ -17,7 +17,7 @@ A JavaScript plugin that adds logarithmic progression to Finsweet's range slider
 Add this script to your project's custom code section, before the closing `</body>` tag in your Webflow project settings:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.0/logarithmic-slider.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.6/logarithmic-slider.js"></script>
 ```
 
 ## Usage
