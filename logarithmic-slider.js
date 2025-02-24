@@ -26,37 +26,56 @@ class ROICalculator {
         savingsOutput: '[data-roi="savings"]',
         planOutput: '[data-roi="plan"]',
         planPriceOutput: '[data-roi="plan-price"]',
-        monthlySavingsOutput: '[data-roi="monthly-savings"]',
+        monthlySavingsOutput: '[data-roi="monthly-savings"]'
       }
     };
     
     this.values = {
-      skuCount: 0,
-      itemValue: 0,
-      salary: 0,
+      skuCount: 1000,
+      itemValue: 100,
+      salary: 2000,
       salaryPeriod: 'monthly', // 'monthly' or 'yearly'
-      transactions: 0
+      transactions: 1000
     };
 
+    // Initialiser le calculateur
     this.init();
   }
 
   init() {
-    document.addEventListener('DOMContentLoaded', () => {
-      this.initializeElements();
-      this.attachEventListeners();
-      this.performInitialCalculation();
-    });
+    // Attendre que le DOM soit chargé
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.setup());
+    } else {
+      this.setup();
+    }
   }
 
-  initializeElements() {
-    // Get all slider elements
+  setup() {
+    // Récupérer les éléments du DOM
     this.elements = {};
     for (const [key, selector] of Object.entries(this.config.selectors)) {
       this.elements[key] = document.querySelectorAll(selector);
     }
+
+    // Récupérer l'état initial des radios pour la période du salaire
+    this.updateSalaryPeriod();
     
-    // Initialize radio button state
+    // Configurer les écouteurs d'événements
+    this.setupEventListeners();
+    
+    // Calculer les résultats initiaux
+    this.readCurrentSliderValues();
+    this.calculateResults();
+    
+    // Mettre en place une vérification périodique
+    setInterval(() => {
+      this.readCurrentSliderValues();
+      this.calculateResults();
+    }, 500);
+  }
+
+  updateSalaryPeriod() {
     const salaryPeriodRadios = document.querySelectorAll(this.config.selectors.salaryPeriodRadio);
     if (salaryPeriodRadios.length) {
       for (const radio of salaryPeriodRadios) {
@@ -68,124 +87,74 @@ class ROICalculator {
     }
   }
 
-  attachEventListeners() {
-    // Fonction pour observer les changements dans le texte des éléments d'affichage
-    const observeDisplayValues = () => {
-      const sliders = [
-        { selector: this.config.selectors.skuCountSlider, property: 'skuCount' },
-        { selector: this.config.selectors.itemValueSlider, property: 'itemValue' },
-        { selector: this.config.selectors.salarySlider, property: 'salary' },
-        { selector: this.config.selectors.transactionsSlider, property: 'transactions' }
-      ];
-
-      sliders.forEach(slider => {
-        const elements = document.querySelectorAll(slider.selector);
-        elements.forEach(element => {
-          const displayEl = element.querySelector('[fs-rangeslider-element="display-value"]');
-          if (displayEl) {
-            // Créer un MutationObserver pour chaque élément d'affichage
-            const observer = new MutationObserver((mutations) => {
-              mutations.forEach(mutation => {
-                if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                  this.values[slider.property] = this.parseValue(displayEl.textContent);
-                  this.calculateResults();
-                }
-              });
-            });
-
-            // Observer les changements dans le contenu textuel
-            observer.observe(displayEl, {
-              childList: true,
-              characterData: true,
-              subtree: true
-            });
-          }
-        });
-      });
-    };
-
-    observeDisplayValues();
-
-    // Écouter également les événements sliderChange
-    document.addEventListener('sliderChange', (e) => {
-      const wrapper = e.target;
-      
-      // Identifier quel slider a changé et mettre à jour la valeur correspondante
-      if (wrapper.matches(this.config.selectors.skuCountSlider)) {
-        this.values.skuCount = e.detail.value;
-      } else if (wrapper.matches(this.config.selectors.itemValueSlider)) {
-        this.values.itemValue = e.detail.value;
-      } else if (wrapper.matches(this.config.selectors.salarySlider)) {
-        this.values.salary = e.detail.value;
-      } else if (wrapper.matches(this.config.selectors.transactionsSlider)) {
-        this.values.transactions = e.detail.value;
-      }
-      
-      // Recalculer les résultats
-      this.calculateResults();
-    });
-
+  setupEventListeners() {
     // Écouter les changements de période de salaire
     const salaryPeriodRadios = document.querySelectorAll(this.config.selectors.salaryPeriodRadio);
     if (salaryPeriodRadios.length) {
       for (const radio of salaryPeriodRadios) {
-        radio.addEventListener('change', (e) => {
-          this.values.salaryPeriod = e.target.value;
+        radio.addEventListener('change', () => {
+          this.updateSalaryPeriod();
           this.calculateResults();
         });
       }
     }
-  }
-
-  performInitialCalculation() {
-    // Read initial values from sliders
-    this.captureInitialValues();
     
-    // Perform initial calculation
-    this.calculateResults();
+    // Fonction pour créer un écouteur pour un slider spécifique
+    const createSliderListener = (sliderSelector, property) => {
+      const sliders = document.querySelectorAll(sliderSelector);
+      sliders.forEach(slider => {
+        // Surveiller les clics sur le slider pour déclencher une lecture de valeur
+        slider.addEventListener('mouseup', () => {
+          this.readCurrentSliderValues();
+          this.calculateResults();
+        });
+        
+        slider.addEventListener('touchend', () => {
+          this.readCurrentSliderValues();
+          this.calculateResults();
+        });
+      });
+    };
+    
+    // Configurer les écouteurs pour chaque slider
+    createSliderListener(this.config.selectors.skuCountSlider, 'skuCount');
+    createSliderListener(this.config.selectors.itemValueSlider, 'itemValue');
+    createSliderListener(this.config.selectors.salarySlider, 'salary');
+    createSliderListener(this.config.selectors.transactionsSlider, 'transactions');
   }
 
-  captureInitialValues() {
-    // Get initial values from each slider
-    const skuCountSlider = document.querySelector(this.config.selectors.skuCountSlider);
-    if (skuCountSlider) {
-      const displayEl = skuCountSlider.querySelector('[fs-rangeslider-element="display-value"]');
-      if (displayEl) this.values.skuCount = this.parseValue(displayEl.textContent);
-    }
+  readCurrentSliderValues() {
+    // Lire les valeurs actuelles des sliders
+    this.readSliderValue(this.config.selectors.skuCountSlider, 'skuCount');
+    this.readSliderValue(this.config.selectors.itemValueSlider, 'itemValue');
+    this.readSliderValue(this.config.selectors.salarySlider, 'salary');
+    this.readSliderValue(this.config.selectors.transactionsSlider, 'transactions');
+  }
 
-    const itemValueSlider = document.querySelector(this.config.selectors.itemValueSlider);
-    if (itemValueSlider) {
-      const displayEl = itemValueSlider.querySelector('[fs-rangeslider-element="display-value"]');
-      if (displayEl) this.values.itemValue = this.parseValue(displayEl.textContent);
-    }
-
-    const salarySlider = document.querySelector(this.config.selectors.salarySlider);
-    if (salarySlider) {
-      const displayEl = salarySlider.querySelector('[fs-rangeslider-element="display-value"]');
-      if (displayEl) this.values.salary = this.parseValue(displayEl.textContent);
-    }
-
-    const transactionsSlider = document.querySelector(this.config.selectors.transactionsSlider);
-    if (transactionsSlider) {
-      const displayEl = transactionsSlider.querySelector('[fs-rangeslider-element="display-value"]');
-      if (displayEl) this.values.transactions = this.parseValue(displayEl.textContent);
+  readSliderValue(selector, property) {
+    const slider = document.querySelector(selector);
+    if (slider) {
+      const displayEl = slider.querySelector('[fs-rangeslider-element="display-value"]');
+      if (displayEl && displayEl.textContent) {
+        this.values[property] = this.parseValue(displayEl.textContent);
+      }
     }
   }
 
   parseValue(value) {
     if (!value) return 0;
     
-    // Remove currency symbol and any formatting
+    // Convertir en chaîne et nettoyer (supprimer symboles de devise, etc.)
     value = value.toString().replace(/[^0-9KMk.,]/g, '');
     
-    // Handle K and M suffixes
+    // Gérer les suffixes K et M
     if (value.includes('K') || value.includes('k')) {
       return parseFloat(value.replace(/[Kk]/g, '')) * 1000;
     } else if (value.includes('M') || value.includes('m')) {
       return parseFloat(value.replace(/[Mm]/g, '')) * 1000000;
     }
     
-    // Handle thousand separators
+    // Gérer les séparateurs de milliers
     return parseFloat(value.replace(/\./g, '').replace(',', '.'));
   }
 
@@ -198,17 +167,18 @@ class ROICalculator {
   }
 
   determineMonthlyPlan() {
-    // Find the appropriate plan based on transactions
-    let selectedPlan = this.config.plans[0]; // Default to the lowest plan
+    // Trouver le plan approprié basé sur le nombre de transactions
+    let selectedPlan = this.config.plans[0]; // Par défaut, le plan le plus bas
     
-    for (const plan of this.config.plans) {
+    for (let i = 0; i < this.config.plans.length; i++) {
+      const plan = this.config.plans[i];
       if (this.values.transactions <= plan.transactions) {
         selectedPlan = plan;
         break;
       }
     }
     
-    // If we have more transactions than the highest plan, use the highest plan
+    // Si nous avons plus de transactions que le plan le plus élevé, utiliser le plan le plus élevé
     if (this.values.transactions > this.config.plans[this.config.plans.length - 1].transactions) {
       selectedPlan = this.config.plans[this.config.plans.length - 1];
     }
@@ -217,24 +187,24 @@ class ROICalculator {
   }
 
   calculateResults() {
-    // Calculate inventory value: Q1 x Q2
+    // Calculer la valeur d'inventaire: Q1 x Q2
     const inventoryValue = this.values.skuCount * this.values.itemValue;
     
-    // Calculate monthly salary if yearly
+    // Calculer le salaire mensuel si annuel
     const monthlySalary = this.values.salaryPeriod === 'yearly' 
       ? this.values.salary / 12 
       : this.values.salary;
     
-    // Calculate savings: (35% x inventory value) + (30% x monthly salary)
+    // Calculer les économies: (35% x valeur d'inventaire) + (30% x salaire mensuel)
     const savings = (0.35 * inventoryValue) + (0.3 * monthlySalary);
     
-    // Determine the monthly plan
+    // Déterminer le plan mensuel
     const plan = this.determineMonthlyPlan();
     
-    // Calculate total monthly savings: savings - plan price
+    // Calculer les économies mensuelles totales: économies - prix du plan
     const monthlySavings = savings - plan.price;
     
-    // Update all output elements
+    // Mettre à jour tous les éléments de sortie
     this.updateOutputs({
       inventoryValue,
       savings,
@@ -244,32 +214,34 @@ class ROICalculator {
   }
 
   updateOutputs(results) {
-    // Update inventory value
+    // Mettre à jour la valeur d'inventaire
     this.elements.inventoryValueOutput.forEach(el => {
       el.textContent = this.formatCurrency(results.inventoryValue);
     });
     
-    // Update savings
+    // Mettre à jour les économies
     this.elements.savingsOutput.forEach(el => {
       el.textContent = this.formatCurrency(results.savings);
     });
     
-    // Update plan name
+    // Mettre à jour le nom du plan
     this.elements.planOutput.forEach(el => {
       el.textContent = results.plan.name;
     });
     
-    // Update plan price
+    // Mettre à jour le prix du plan
     this.elements.planPriceOutput.forEach(el => {
       el.textContent = this.formatCurrency(results.plan.price);
     });
     
-    // Update monthly savings
+    // Mettre à jour les économies mensuelles
     this.elements.monthlySavingsOutput.forEach(el => {
       el.textContent = this.formatCurrency(results.monthlySavings);
     });
   }
 }
 
-// Initialize the calculator
-const roiCalculator = new ROICalculator();
+// Initialiser le calculateur une fois le DOM chargé
+window.addEventListener('load', () => {
+  new ROICalculator();
+});
