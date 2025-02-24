@@ -17,7 +17,7 @@ A JavaScript plugin that adds logarithmic progression to Finsweet's range slider
 Add this script to your project's custom code section, before the closing `</body>` tag in your Webflow project settings:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.7/logarithmic-slider.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.0/logarithmic-slider.js"></script>
 ```
 
 ## Usage
@@ -89,15 +89,15 @@ To show the current value, use Finsweet's display value element:
 ## Number Formatting
 
 The slider automatically formats numbers for better readability:
-- Thousands are separated with dots (e.g., "1.000", "10.000", "100.000")
-- Millions are abbreviated with "M" (e.g., "1M" instead of "1.000.000")
-- Values over a million are formatted with one decimal if needed (e.g., "1.5M")
+- Numbers below 10000 are displayed normally with dot separator for thousands (e.g., "1.000")
+- Numbers from 10000 use "K" notation (e.g., "10K", "100K")
+- Millions use "M" notation (e.g., "1M", "1.5M")
 
 Examples:
 ```
 1000 → 1.000
-10000 → 10.000
-100000 → 100.000
+10000 → 10K
+100000 → 100K
 1000000 → 1M
 1500000 → 1.5M
 ```
