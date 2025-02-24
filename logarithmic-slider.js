@@ -1,191 +1,275 @@
-class LogarithmicSlider {
+/**
+ * ROI Calculator for Ventory
+ * Handles calculations for the inventory management ROI tool
+ */
+class ROICalculator {
   constructor() {
-    this.attributePrefix = 'data-log-slider';
     this.config = {
-      wrapperAttr: 'fs-rangeslider-element="wrapper"',
-      handleAttr: 'fs-rangeslider-element="handle"',
-      trackAttr: 'fs-rangeslider-element="track"',
-      fillAttr: 'fs-rangeslider-element="fill"',
-      displayAttr: 'fs-rangeslider-element="display-value"',
-      inputAttr: 'input[type="range"]'
+      plans: [
+        { name: 'Lite', price: 100, transactions: 500 },
+        { name: 'Basic', price: 350, transactions: 1000 },
+        { name: 'Core', price: 600, transactions: 2000 },
+        { name: 'Business', price: 1250, transactions: 5000 },
+        { name: 'Enterprise Basic', price: 2950, transactions: 15000 },
+        { name: 'Enterprise Advanced', price: 5900, transactions: 30000 }
+      ],
+      selectors: {
+        // Input sliders
+        skuCountSlider: '[data-roi="sku-count"]',
+        itemValueSlider: '[data-roi="item-value"]',
+        salarySlider: '[data-roi="salary"]',
+        salaryPeriodRadio: '[data-roi="salary-period"]',
+        transactionsSlider: '[data-roi="transactions"]',
+        
+        // Output elements
+        inventoryValueOutput: '[data-roi="inventory-value"]',
+        savingsOutput: '[data-roi="savings"]',
+        planOutput: '[data-roi="plan"]',
+        planPriceOutput: '[data-roi="plan-price"]',
+        monthlySavingsOutput: '[data-roi="monthly-savings"]',
+      }
+    };
+    
+    this.values = {
+      skuCount: 0,
+      itemValue: 0,
+      salary: 0,
+      salaryPeriod: 'monthly', // 'monthly' or 'yearly'
+      transactions: 0
     };
 
-    // Initialiser tous les sliders quand le DOM est chargé
+    this.init();
+  }
+
+  init() {
     document.addEventListener('DOMContentLoaded', () => {
-      const sliders = document.querySelectorAll(`[${this.config.wrapperAttr}]`);
-      sliders.forEach(wrapper => this.setupSlider(wrapper));
+      this.initializeElements();
+      this.attachEventListeners();
+      this.performInitialCalculation();
     });
   }
 
-  getScaleFromAttribute(wrapper) {
-    const scaleAttr = wrapper.getAttribute(`${this.attributePrefix}-scale`);
-    if (!scaleAttr) return [0, 10000]; // Échelle par défaut
-    try {
-      return JSON.parse(scaleAttr);
-    } catch (e) {
-      console.error('Invalid scale format:', scaleAttr);
-      return [0, 10000];
+  initializeElements() {
+    // Get all slider elements
+    this.elements = {};
+    for (const [key, selector] of Object.entries(this.config.selectors)) {
+      this.elements[key] = document.querySelectorAll(selector);
     }
-  }
-
-  getCurrencyFromAttribute(wrapper) {
-    return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
-  }
-  
-  getStartValueFromAttribute(wrapper, min, max) {
-    const startAttr = wrapper.getAttribute(`${this.attributePrefix}-start`);
-    if (!startAttr) return min; // Valeur par défaut = min
     
-    try {
-      const startValue = parseFloat(startAttr);
-      // S'assurer que la valeur est dans la plage
-      return Math.max(min, Math.min(max, startValue));
-    } catch (e) {
-      console.error('Invalid start value:', startAttr);
-      return min;
+    // Initialize radio button state
+    const salaryPeriodRadios = document.querySelectorAll(this.config.selectors.salaryPeriodRadio);
+    if (salaryPeriodRadios.length) {
+      for (const radio of salaryPeriodRadios) {
+        if (radio.checked) {
+          this.values.salaryPeriod = radio.value;
+          break;
+        }
+      }
     }
   }
 
-  formatNumber(number) {
-    if (number >= 1000000) {
-      return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    }
-    if (number >= 10000) {
-      return (number / 1000).toFixed(0) + 'K';
-    }
-    if (number >= 1000) {
-      return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    }
-    return number.toString();
-  }
+  attachEventListeners() {
+    // Fonction pour observer les changements dans le texte des éléments d'affichage
+    const observeDisplayValues = () => {
+      const sliders = [
+        { selector: this.config.selectors.skuCountSlider, property: 'skuCount' },
+        { selector: this.config.selectors.itemValueSlider, property: 'itemValue' },
+        { selector: this.config.selectors.salarySlider, property: 'salary' },
+        { selector: this.config.selectors.transactionsSlider, property: 'transactions' }
+      ];
 
-  calculateValue(percentage, min, max) {
-    if (percentage <= 0) return min;
-    if (percentage >= 1) return max;
+      sliders.forEach(slider => {
+        const elements = document.querySelectorAll(slider.selector);
+        elements.forEach(element => {
+          const displayEl = element.querySelector('[fs-rangeslider-element="display-value"]');
+          if (displayEl) {
+            // Créer un MutationObserver pour chaque élément d'affichage
+            const observer = new MutationObserver((mutations) => {
+              mutations.forEach(mutation => {
+                if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                  this.values[slider.property] = this.parseValue(displayEl.textContent);
+                  this.calculateResults();
+                }
+              });
+            });
 
-    // Utiliser une échelle logarithmique
-    const minp = 0;
-    const maxp = 1;
-
-    // La courbe logarithmique
-    const minv = Math.log(min || 1);
-    const maxv = Math.log(max);
-
-    // Calcul de l'échelle
-    const scale = (maxv - minv) / (maxp - minp);
-
-    return Math.exp(minv + scale * (percentage - minp));
-  }
-  
-  calculatePosition(value, min, max) {
-    if (value <= min) return 0;
-    if (value >= max) return 1;
-    
-    // Éviter log(0)
-    min = min <= 0 ? 0.1 : min;
-    value = value <= 0 ? 0.1 : value;
-    
-    // Utiliser une échelle logarithmique inverse
-    const minv = Math.log(min);
-    const maxv = Math.log(max);
-    
-    return (Math.log(value) - minv) / (maxv - minv);
-  }
-
-  setupSlider(wrapper) {
-    const elements = {
-      track: wrapper.querySelector(`[${this.config.trackAttr}]`),
-      fill: wrapper.querySelector(`[${this.config.fillAttr}]`),
-      handle: wrapper.querySelector(`[${this.config.handleAttr}]`),
-      display: wrapper.querySelector(`[${this.config.displayAttr}]`),
-      input: wrapper.querySelector(this.config.inputAttr)
+            // Observer les changements dans le contenu textuel
+            observer.observe(displayEl, {
+              childList: true,
+              characterData: true,
+              subtree: true
+            });
+          }
+        });
+      });
     };
 
-    if (!elements.track || !elements.handle) return;
+    observeDisplayValues();
 
-    const scale = this.getScaleFromAttribute(wrapper);
-    const currency = this.getCurrencyFromAttribute(wrapper);
-    const min = scale[0];
-    const max = scale[scale.length - 1];
-    const startValue = this.getStartValueFromAttribute(wrapper, min, max);
-
-    let isDragging = false;
-
-    const updateUI = (percentage) => {
-      percentage = Math.max(0, Math.min(1, percentage));
-      const value = Math.round(this.calculateValue(percentage, min, max));
-      const formattedValue = this.formatNumber(value);
+    // Écouter également les événements sliderChange
+    document.addEventListener('sliderChange', (e) => {
+      const wrapper = e.target;
       
-      elements.handle.style.left = `${percentage * 100}%`;
-      if (elements.fill) elements.fill.style.width = `${percentage * 100}%`;
-      if (elements.display) elements.display.textContent = currency ? `${formattedValue}${currency}` : formattedValue;
-      if (elements.input) elements.input.value = value;
-    };
-
-    const handleMove = (clientX) => {
-      const rect = elements.track.getBoundingClientRect();
-      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
-      const percentage = x / rect.width;
-      updateUI(percentage);
-    };
-
-    elements.track.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      handleMove(e.clientX);
-      document.addEventListener('mousemove', handleDrag);
-    });
-
-    elements.handle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      e.stopPropagation();
-      document.addEventListener('mousemove', handleDrag);
-    });
-
-    const handleDrag = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      handleMove(e.clientX);
-    };
-
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        document.removeEventListener('mousemove', handleDrag);
+      // Identifier quel slider a changé et mettre à jour la valeur correspondante
+      if (wrapper.matches(this.config.selectors.skuCountSlider)) {
+        this.values.skuCount = e.detail.value;
+      } else if (wrapper.matches(this.config.selectors.itemValueSlider)) {
+        this.values.itemValue = e.detail.value;
+      } else if (wrapper.matches(this.config.selectors.salarySlider)) {
+        this.values.salary = e.detail.value;
+      } else if (wrapper.matches(this.config.selectors.transactionsSlider)) {
+        this.values.transactions = e.detail.value;
       }
+      
+      // Recalculer les résultats
+      this.calculateResults();
     });
 
-    // Touch events
-    const handleTouch = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      handleMove(touch.clientX);
-    };
-
-    elements.track.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      handleTouch(e);
-      document.addEventListener('touchmove', handleTouch);
-    });
-
-    elements.handle.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      e.stopPropagation();
-      document.addEventListener('touchmove', handleTouch);
-    });
-
-    document.addEventListener('touchend', () => {
-      if (isDragging) {
-        isDragging = false;
-        document.removeEventListener('touchmove', handleTouch);
+    // Écouter les changements de période de salaire
+    const salaryPeriodRadios = document.querySelectorAll(this.config.selectors.salaryPeriodRadio);
+    if (salaryPeriodRadios.length) {
+      for (const radio of salaryPeriodRadios) {
+        radio.addEventListener('change', (e) => {
+          this.values.salaryPeriod = e.target.value;
+          this.calculateResults();
+        });
       }
-    });
+    }
+  }
 
-    // Initial position based on startValue
-    const startPosition = this.calculatePosition(startValue, min, max);
-    updateUI(startPosition);
+  performInitialCalculation() {
+    // Read initial values from sliders
+    this.captureInitialValues();
+    
+    // Perform initial calculation
+    this.calculateResults();
+  }
+
+  captureInitialValues() {
+    // Get initial values from each slider
+    const skuCountSlider = document.querySelector(this.config.selectors.skuCountSlider);
+    if (skuCountSlider) {
+      const displayEl = skuCountSlider.querySelector('[fs-rangeslider-element="display-value"]');
+      if (displayEl) this.values.skuCount = this.parseValue(displayEl.textContent);
+    }
+
+    const itemValueSlider = document.querySelector(this.config.selectors.itemValueSlider);
+    if (itemValueSlider) {
+      const displayEl = itemValueSlider.querySelector('[fs-rangeslider-element="display-value"]');
+      if (displayEl) this.values.itemValue = this.parseValue(displayEl.textContent);
+    }
+
+    const salarySlider = document.querySelector(this.config.selectors.salarySlider);
+    if (salarySlider) {
+      const displayEl = salarySlider.querySelector('[fs-rangeslider-element="display-value"]');
+      if (displayEl) this.values.salary = this.parseValue(displayEl.textContent);
+    }
+
+    const transactionsSlider = document.querySelector(this.config.selectors.transactionsSlider);
+    if (transactionsSlider) {
+      const displayEl = transactionsSlider.querySelector('[fs-rangeslider-element="display-value"]');
+      if (displayEl) this.values.transactions = this.parseValue(displayEl.textContent);
+    }
+  }
+
+  parseValue(value) {
+    if (!value) return 0;
+    
+    // Remove currency symbol and any formatting
+    value = value.toString().replace(/[^0-9KMk.,]/g, '');
+    
+    // Handle K and M suffixes
+    if (value.includes('K') || value.includes('k')) {
+      return parseFloat(value.replace(/[Kk]/g, '')) * 1000;
+    } else if (value.includes('M') || value.includes('m')) {
+      return parseFloat(value.replace(/[Mm]/g, '')) * 1000000;
+    }
+    
+    // Handle thousand separators
+    return parseFloat(value.replace(/\./g, '').replace(',', '.'));
+  }
+
+  formatCurrency(value) {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+
+  determineMonthlyPlan() {
+    // Find the appropriate plan based on transactions
+    let selectedPlan = this.config.plans[0]; // Default to the lowest plan
+    
+    for (const plan of this.config.plans) {
+      if (this.values.transactions <= plan.transactions) {
+        selectedPlan = plan;
+        break;
+      }
+    }
+    
+    // If we have more transactions than the highest plan, use the highest plan
+    if (this.values.transactions > this.config.plans[this.config.plans.length - 1].transactions) {
+      selectedPlan = this.config.plans[this.config.plans.length - 1];
+    }
+    
+    return selectedPlan;
+  }
+
+  calculateResults() {
+    // Calculate inventory value: Q1 x Q2
+    const inventoryValue = this.values.skuCount * this.values.itemValue;
+    
+    // Calculate monthly salary if yearly
+    const monthlySalary = this.values.salaryPeriod === 'yearly' 
+      ? this.values.salary / 12 
+      : this.values.salary;
+    
+    // Calculate savings: (35% x inventory value) + (30% x monthly salary)
+    const savings = (0.35 * inventoryValue) + (0.3 * monthlySalary);
+    
+    // Determine the monthly plan
+    const plan = this.determineMonthlyPlan();
+    
+    // Calculate total monthly savings: savings - plan price
+    const monthlySavings = savings - plan.price;
+    
+    // Update all output elements
+    this.updateOutputs({
+      inventoryValue,
+      savings,
+      plan,
+      monthlySavings
+    });
+  }
+
+  updateOutputs(results) {
+    // Update inventory value
+    this.elements.inventoryValueOutput.forEach(el => {
+      el.textContent = this.formatCurrency(results.inventoryValue);
+    });
+    
+    // Update savings
+    this.elements.savingsOutput.forEach(el => {
+      el.textContent = this.formatCurrency(results.savings);
+    });
+    
+    // Update plan name
+    this.elements.planOutput.forEach(el => {
+      el.textContent = results.plan.name;
+    });
+    
+    // Update plan price
+    this.elements.planPriceOutput.forEach(el => {
+      el.textContent = this.formatCurrency(results.plan.price);
+    });
+    
+    // Update monthly savings
+    this.elements.monthlySavingsOutput.forEach(el => {
+      el.textContent = this.formatCurrency(results.monthlySavings);
+    });
   }
 }
 
-// Initialize
-new LogarithmicSlider();
+// Initialize the calculator
+const roiCalculator = new ROICalculator();
