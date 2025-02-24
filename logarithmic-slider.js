@@ -1,20 +1,4 @@
-calculateValue(percentage, min, max) {
-    if (percentage <= 0) return min;
-    if (percentage >= 1) return max;
-
-    // Utiliser une échelle logarithmique
-    const minp = 0;
-    const maxp = 1;
-
-    // La courbe logarithmique
-    const minv = Math.log(min || 1);
-    const maxv = Math.log(max);
-
-    // Calcul de l'échelle
-    const scale = (maxv - minv) / (maxp - minp);
-
-    return Math.exp(minv + scale * (percentage - minp));
-  }class LogarithmicSlider {
+class LogarithmicSlider {
   constructor() {
     this.attributePrefix = 'data-log-slider';
     this.config = {
@@ -47,7 +31,7 @@ calculateValue(percentage, min, max) {
   getCurrencyFromAttribute(wrapper) {
     return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
   }
-
+  
   getStartValueFromAttribute(wrapper, min, max) {
     const startAttr = wrapper.getAttribute(`${this.attributePrefix}-start`);
     if (!startAttr) return min; // Valeur par défaut = min
@@ -61,18 +45,6 @@ calculateValue(percentage, min, max) {
       return min;
     }
   }
-  
-  calculatePosition(value, min, max) {
-    if (value <= min) return 0;
-    if (value >= max) return 1;
-    
-    // Utiliser une échelle logarithmique inverse
-    const minv = Math.log(min || 1);
-    const maxv = Math.log(max);
-    const scale = (maxv - minv);
-    
-    return (Math.log(value) - minv) / scale;
-  }
 
   formatNumber(number) {
     if (number >= 1000000) {
@@ -85,6 +57,39 @@ calculateValue(percentage, min, max) {
       return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
     return number.toString();
+  }
+
+  calculateValue(percentage, min, max) {
+    if (percentage <= 0) return min;
+    if (percentage >= 1) return max;
+
+    // Utiliser une échelle logarithmique
+    const minp = 0;
+    const maxp = 1;
+
+    // La courbe logarithmique
+    const minv = Math.log(min || 1);
+    const maxv = Math.log(max);
+
+    // Calcul de l'échelle
+    const scale = (maxv - minv) / (maxp - minp);
+
+    return Math.exp(minv + scale * (percentage - minp));
+  }
+  
+  calculatePosition(value, min, max) {
+    if (value <= min) return 0;
+    if (value >= max) return 1;
+    
+    // Éviter log(0)
+    min = min <= 0 ? 0.1 : min;
+    value = value <= 0 ? 0.1 : value;
+    
+    // Utiliser une échelle logarithmique inverse
+    const minv = Math.log(min);
+    const maxv = Math.log(max);
+    
+    return (Math.log(value) - minv) / (maxv - minv);
   }
 
   setupSlider(wrapper) {
@@ -103,7 +108,6 @@ calculateValue(percentage, min, max) {
     const min = scale[0];
     const max = scale[scale.length - 1];
     const startValue = this.getStartValueFromAttribute(wrapper, min, max);
-    const startPosition = this.calculatePosition(startValue, min, max);
 
     let isDragging = false;
 
@@ -177,7 +181,8 @@ calculateValue(percentage, min, max) {
       }
     });
 
-    // Initial state
+    // Initial position based on startValue
+    const startPosition = this.calculatePosition(startValue, min, max);
     updateUI(startPosition);
   }
 }
