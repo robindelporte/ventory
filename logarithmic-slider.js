@@ -18,7 +18,6 @@ class ROICalculator {
         skuCountSlider: '[data-roi="sku-count"]',
         itemValueSlider: '[data-roi="item-value"]',
         salarySlider: '[data-roi="salary"]',
-        salaryPeriodRadio: '[data-roi="salary-period"]',
         transactionsSlider: '[data-roi="transactions"]',
         
         // Output elements
