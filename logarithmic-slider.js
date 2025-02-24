@@ -122,8 +122,8 @@ class LogarithmicSlider {
       wrapper.dispatchEvent(new CustomEvent('sliderChange', { 
         detail: { 
           value,
-          index,
-          values,
+          position,
+          markers: values.markers,
           currency 
         }
       }));
