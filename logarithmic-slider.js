@@ -50,6 +50,13 @@ class LogarithmicSlider {
     return Math.exp(minv + scale * (percentage - minp));
   }
 
+  formatNumber(number) {
+    if (number >= 1000000) {
+      return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  }
+
   setupSlider(wrapper) {
     const elements = {
       track: wrapper.querySelector(`[${this.config.trackAttr}]`),
@@ -71,10 +78,11 @@ class LogarithmicSlider {
     const updateUI = (percentage) => {
       percentage = Math.max(0, Math.min(1, percentage));
       const value = Math.round(this.calculateValue(percentage, min, max));
+      const formattedValue = this.formatNumber(value);
       
       elements.handle.style.left = `${percentage * 100}%`;
       if (elements.fill) elements.fill.style.width = `${percentage * 100}%`;
-      if (elements.display) elements.display.textContent = currency ? `${value}${currency}` : value;
+      if (elements.display) elements.display.textContent = currency ? `${formattedValue}${currency}` : formattedValue;
       if (elements.input) elements.input.value = value;
     };
 
