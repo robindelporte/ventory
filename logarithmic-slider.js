@@ -54,7 +54,13 @@ class LogarithmicSlider {
     if (number >= 1000000) {
       return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     }
-    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    if (number >= 10000) {
+      return (number / 1000).toFixed(0) + 'K';
+    }
+    if (number >= 1000) {
+      return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    return number.toString();
   }
 
   setupSlider(wrapper) {
