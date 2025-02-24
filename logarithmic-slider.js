@@ -1,4 +1,20 @@
-class LogarithmicSlider {
+calculateValue(percentage, min, max) {
+    if (percentage <= 0) return min;
+    if (percentage >= 1) return max;
+
+    // Utiliser une échelle logarithmique
+    const minp = 0;
+    const maxp = 1;
+
+    // La courbe logarithmique
+    const minv = Math.log(min || 1);
+    const maxv = Math.log(max);
+
+    // Calcul de l'échelle
+    const scale = (maxv - minv) / (maxp - minp);
+
+    return Math.exp(minv + scale * (percentage - minp));
+  }class LogarithmicSlider {
   constructor() {
     this.attributePrefix = 'data-log-slider';
     this.config = {
@@ -32,22 +48,30 @@ class LogarithmicSlider {
     return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
   }
 
-  calculateValue(percentage, min, max) {
-    if (percentage <= 0) return min;
-    if (percentage >= 1) return max;
-
-    // Utiliser une échelle logarithmique
-    const minp = 0;
-    const maxp = 1;
-
-    // La courbe logarithmique
+  getStartValueFromAttribute(wrapper, min, max) {
+    const startAttr = wrapper.getAttribute(`${this.attributePrefix}-start`);
+    if (!startAttr) return min; // Valeur par défaut = min
+    
+    try {
+      const startValue = parseFloat(startAttr);
+      // S'assurer que la valeur est dans la plage
+      return Math.max(min, Math.min(max, startValue));
+    } catch (e) {
+      console.error('Invalid start value:', startAttr);
+      return min;
+    }
+  }
+  
+  calculatePosition(value, min, max) {
+    if (value <= min) return 0;
+    if (value >= max) return 1;
+    
+    // Utiliser une échelle logarithmique inverse
     const minv = Math.log(min || 1);
     const maxv = Math.log(max);
-
-    // Calcul de l'échelle
-    const scale = (maxv - minv) / (maxp - minp);
-
-    return Math.exp(minv + scale * (percentage - minp));
+    const scale = (maxv - minv);
+    
+    return (Math.log(value) - minv) / scale;
   }
 
   formatNumber(number) {
@@ -78,6 +102,8 @@ class LogarithmicSlider {
     const currency = this.getCurrencyFromAttribute(wrapper);
     const min = scale[0];
     const max = scale[scale.length - 1];
+    const startValue = this.getStartValueFromAttribute(wrapper, min, max);
+    const startPosition = this.calculatePosition(startValue, min, max);
 
     let isDragging = false;
 
@@ -152,7 +178,7 @@ class LogarithmicSlider {
     });
 
     // Initial state
-    updateUI(0);
+    updateUI(startPosition);
   }
 }
 
