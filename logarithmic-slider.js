@@ -14,11 +14,11 @@ class ROICalculator {
         { name: 'Enterprise Advanced', price: 5900, transactions: 30000 }
       ],
       selectors: {
-        // Input sliders conteneurs
-        skuCountSlider: '[data-roi="sku-count"]',
-        itemValueSlider: '[data-roi="item-value"]',
-        salarySlider: '[data-roi="salary"]',
-        transactionsSlider: '[data-roi="transactions"]',
+        // Input wrappers
+        skuCountWrapper: '[data-roi="sku-count"]',
+        itemValueWrapper: '[data-roi="item-value"]',
+        salaryWrapper: '[data-roi="salary"]',
+        transactionsWrapper: '[data-roi="transactions"]',
         
         // Output elements
         inventoryValueOutput: '[data-roi="inventory-value"]',
@@ -33,7 +33,6 @@ class ROICalculator {
       skuCount: 1000,
       itemValue: 100,
       salary: 2000,
-      salaryPeriod: 'monthly', // Toujours mensuel
       transactions: 1000
     };
 
@@ -43,89 +42,97 @@ class ROICalculator {
 
   init() {
     // Attendre que le DOM soit complètement chargé
-    window.addEventListener('load', () => {
-      // Récupérer les éléments du DOM
-      this.getElements();
-      
-      // Configurer les écouteurs d'événements
-      this.setupEventListeners();
-      
-      // Calculer les résultats initiaux
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.setup());
+    } else {
+      this.setup();
+    }
+  }
+
+  setup() {
+    console.log("Setting up ROI Calculator");
+    
+    // Récupérer les éléments du DOM
+    this.getElements();
+    
+    // Configurer les observateurs pour détecter les changements
+    this.setupObservers();
+    
+    // Faire le calcul initial
+    this.readCurrentValues();
+    this.calculateResults();
+    
+    // Ajouter une mise à jour périodique comme solution de secours
+    setInterval(() => {
       this.readCurrentValues();
       this.calculateResults();
-    });
+    }, 1000);
   }
 
   getElements() {
-    // Récupérer les éléments de sortie
-    this.outputElements = {};
-    this.outputElements.inventoryValue = document.querySelectorAll(this.config.selectors.inventoryValueOutput);
-    this.outputElements.savings = document.querySelectorAll(this.config.selectors.savingsOutput);
-    this.outputElements.plan = document.querySelectorAll(this.config.selectors.planOutput);
-    this.outputElements.planPrice = document.querySelectorAll(this.config.selectors.planPriceOutput);
-    this.outputElements.monthlySavings = document.querySelectorAll(this.config.selectors.monthlySavingsOutput);
+    // Obtenir les éléments d'affichage de valeur de slider
+    this.displayElements = {
+      skuCount: this.getDisplayElement(this.config.selectors.skuCountWrapper),
+      itemValue: this.getDisplayElement(this.config.selectors.itemValueWrapper),
+      salary: this.getDisplayElement(this.config.selectors.salaryWrapper),
+      transactions: this.getDisplayElement(this.config.selectors.transactionsWrapper)
+    };
+
+    console.log("Display elements:", this.displayElements);
     
-    // Récupérer les inputs Finsweet
-    this.inputs = {};
-    this.getSliderInput(this.config.selectors.skuCountSlider, 'skuCount');
-    this.getSliderInput(this.config.selectors.itemValueSlider, 'itemValue');
-    this.getSliderInput(this.config.selectors.salarySlider, 'salary');
-    this.getSliderInput(this.config.selectors.transactionsSlider, 'transactions');
+    // Obtenir les éléments de sortie
+    this.outputElements = {
+      inventoryValue: document.querySelectorAll(this.config.selectors.inventoryValueOutput),
+      savings: document.querySelectorAll(this.config.selectors.savingsOutput),
+      plan: document.querySelectorAll(this.config.selectors.planOutput),
+      planPrice: document.querySelectorAll(this.config.selectors.planPriceOutput),
+      monthlySavings: document.querySelectorAll(this.config.selectors.monthlySavingsOutput)
+    };
   }
 
-  getSliderInput(selector, propertyName) {
-    const container = document.querySelector(selector);
-    if (container) {
-      this.inputs[propertyName] = container.querySelector('input');
-    }
+  getDisplayElement(wrapperSelector) {
+    const wrapper = document.querySelector(wrapperSelector);
+    if (!wrapper) return null;
+    
+    return wrapper.querySelector('[fs-rangeslider-element="display-value"]');
   }
 
-  // Supprimer cette méthode qui n'est plus nécessaire
-  /*
-  updateSalaryPeriod() {
-    if (this.salaryPeriodRadios.length) {
-      for (const radio of this.salaryPeriodRadios) {
-        if (radio.checked) {
-          this.values.salaryPeriod = radio.value;
-          break;
-        }
-      }
-    }
-  }
-  */
-
-  setupEventListeners() {
-    // Écouter les changements sur les inputs Finsweet
-    for (const [property, input] of Object.entries(this.inputs)) {
-      if (input) {
-        input.addEventListener('input', () => {
-          this.readCurrentValues();
-          this.calculateResults();
+  setupObservers() {
+    // Configurer un MutationObserver pour chaque élément d'affichage
+    for (const [property, element] of Object.entries(this.displayElements)) {
+      if (element) {
+        console.log(`Setting up observer for ${property}`);
+        
+        const observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+              console.log(`Value changed for ${property}: ${element.textContent}`);
+              this.readCurrentValues();
+              this.calculateResults();
+              break;
+            }
+          }
         });
         
-        input.addEventListener('change', () => {
-          this.readCurrentValues();
-          this.calculateResults();
+        observer.observe(element, {
+          characterData: true,
+          childList: true,
+          subtree: true
         });
       }
     }
   }
 
   readCurrentValues() {
-    // Lire les valeurs des inputs Finsweet
-    for (const [property, input] of Object.entries(this.inputs)) {
-      if (input && input.value) {
-        // Si c'est une valeur logarithmique du slider, on doit la convertir
-        const displayEl = input.closest('[fs-rangeslider-element="wrapper"]')
-                           ?.querySelector('[fs-rangeslider-element="display-value"]');
-        
-        if (displayEl && displayEl.textContent) {
-          this.values[property] = this.parseValue(displayEl.textContent);
-        } else {
-          this.values[property] = parseFloat(input.value) || 0;
-        }
+    // Lire les valeurs à partir des éléments d'affichage
+    for (const [property, element] of Object.entries(this.displayElements)) {
+      if (element && element.textContent) {
+        const rawValue = element.textContent;
+        console.log(`Reading ${property}: ${rawValue}`);
+        this.values[property] = this.parseValue(rawValue);
       }
     }
+    console.log("Current values:", this.values);
   }
 
   parseValue(value) {
@@ -193,7 +200,7 @@ class ROICalculator {
   }
 
   updateOutputs(results) {
-    console.log("Updating outputs with results:", results);
+    console.log("Updating outputs:", results);
     
     // Mettre à jour la valeur d'inventaire
     this.outputElements.inventoryValue.forEach(el => {
@@ -223,4 +230,6 @@ class ROICalculator {
 }
 
 // Initialiser le calculateur
-new ROICalculator();
+window.addEventListener('load', () => {
+  new ROICalculator();
+});
