@@ -35,7 +35,7 @@ class LogarithmicSlider {
 
   getCurrencyFromAttribute(wrapper) {
     // Lire le symbole monétaire depuis l'attribut data
-    return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '€';
+    return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
   }
 
   setupSlider(wrapper) {
@@ -79,7 +79,7 @@ class LogarithmicSlider {
       
       elements.handle.style.left = `${percentage}%`;
       if (elements.fill) elements.fill.style.width = `${percentage}%`;
-      if (elements.display) elements.display.textContent = `${value}${currency}`;
+      if (elements.display) elements.display.textContent = currency ? `${value}${currency}` : value;
       if (elements.input) elements.input.value = index;
       
       currentValue = index;
