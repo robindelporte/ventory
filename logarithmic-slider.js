@@ -44,6 +44,9 @@ class LogarithmicSlider {
 
   // Fonction pour convertir une position linéaire en valeur logarithmique
   calculateLogarithmicValue(position, min, max) {
+    if (position <= 0) return min;
+    if (position >= 1) return max;
+    
     // Éviter log(0)
     min = min <= 0 ? 0.1 : min;
     
@@ -108,25 +111,33 @@ class LogarithmicSlider {
 
     // Mettre à jour l'interface
     const updateUI = (position) => {
+      position = Math.max(0, Math.min(1, position)); // Assurer que position est entre 0 et 1
       const percentage = position * 100;
-      const value = Math.round(this.calculateLogarithmicValue(position, values.min, values.max));
       
-      elements.handle.style.left = `${percentage}%`;
-      if (elements.fill) elements.fill.style.width = `${percentage}%`;
-      if (elements.display) elements.display.textContent = currency ? `${value}${currency}` : value;
-      if (elements.input) elements.input.value = position;
-      
-      currentPosition = position;
+      // S'assurer que values.min et values.max existent
+      if (typeof values.min !== 'undefined' && typeof values.max !== 'undefined') {
+        const value = Math.round(this.calculateLogarithmicValue(position, values.min, values.max));
+        
+        elements.handle.style.left = `${percentage}%`;
+        if (elements.fill) elements.fill.style.width = `${percentage}%`;
+        if (elements.display) elements.display.textContent = currency ? `${value}${currency}` : value;
+        if (elements.input) elements.input.value = position;
+        
+        currentPosition = position;
 
-      // Déclencher un événement personnalisé
-      wrapper.dispatchEvent(new CustomEvent('sliderChange', { 
-        detail: { 
-          value,
-          position,
-          markers: values.markers,
-          currency 
-        }
-      }));
+        // Déclencher un événement personnalisé
+        wrapper.dispatchEvent(new CustomEvent('sliderChange', { 
+          detail: { 
+            value,
+            position,
+            markers: values.markers,
+            currency 
+          }
+        }));
+      } else {
+        console.error('Invalid values object:', values);
+      }
+    };
     };
 
     // Gestionnaires d'événements
