@@ -1,4 +1,3 @@
-
 # Logarithmic Slider for Webflow
 
 A JavaScript plugin that transforms Finsweet's range slider into a logarithmic slider. Perfect for displaying exponential values like pricing ranges.
@@ -12,21 +11,27 @@ A JavaScript plugin that transforms Finsweet's range slider into a logarithmic s
 - Touch and mouse support
 - No additional dependencies required
 
-## Quick Install with CDN
+## Installation
 
-Add this script to your project's custom code section:
+### Quick Install with CDN (Recommended)
+
+Add this script to your project's custom code section, before the closing `</body>` tag in your Webflow project settings:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.0/logarithmic-slider.js"></script>
 ```
 
-Make sure to add it before the closing `</body>` tag in your project settings.
+### Manual Installation
+
+1. Create your range slider in Webflow using Finsweet's Attributes Range Slider
+2. Add the `logarithmic-slider.js` script to your project's custom code section
+3. Make sure to add it before the closing `</body>` tag
 
 ## Usage
 
 ### Basic Implementation
 
-The slider will work with the default scale (1, 10, 100, 1000, 10000) if no custom scale is provided:
+The slider will work with the default scale (1, 10, 100, 1000, 10000) if no custom scale is provided. Values will be displayed without currency unless specified:
 
 ```html
 <div fs-rangeslider-element="wrapper">
@@ -45,9 +50,9 @@ To use a custom scale, add the `data-log-slider-scale` attribute with a JSON arr
 </div>
 ```
 
-### Custom Currency
+### Optional Currency
 
-To change the currency symbol, use the `data-log-slider-currency` attribute:
+To add a currency symbol to the displayed values, use the `data-log-slider-currency` attribute:
 
 ```html
 <div fs-rangeslider-element="wrapper" 
@@ -55,6 +60,8 @@ To change the currency symbol, use the `data-log-slider-currency` attribute:
     <!-- Standard Finsweet range slider structure -->
 </div>
 ```
+
+If no currency attribute is provided, only the numeric value will be displayed.
 
 ### Combined Example
 
@@ -73,7 +80,7 @@ You can combine both custom scale and currency:
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | data-log-slider-scale | JSON Array | [1,10,100,1000,10000] | Defines the values for the slider steps |
-| data-log-slider-currency | String | "€" | Currency symbol to display with values |
+| data-log-slider-currency | String | "" | Optional currency symbol to display with values |
 
 ## Events
 
