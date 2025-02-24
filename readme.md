@@ -17,7 +17,7 @@ A JavaScript plugin that adds logarithmic progression to Finsweet's range slider
 Add this script to your project's custom code section, before the closing `</body>` tag in your Webflow project settings:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.0/logarithmic-slider.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.2.0/logarithmic-slider.js"></script>
 ```
 
 ## Usage
@@ -45,6 +45,20 @@ You can define multiple values in your scale to create visual reference points:
 ```
 
 The slider will still allow continuous selection between 0 and 10000, but now you have visual markers at the specified points (2000, 4000, etc.).
+
+### Starting Value
+
+You can set a specific starting value for the slider:
+
+```html
+<div fs-rangeslider-element="wrapper" 
+     data-log-slider-scale="[0,10000]"
+     data-log-slider-start="5000">
+    <!-- Standard Finsweet range slider structure -->
+</div>
+```
+
+This will position the slider at 5000 when it loads, instead of the default minimum value.
 
 ### Example with Large Numbers
 
@@ -77,6 +91,7 @@ To add a currency symbol to the values:
 |-----------|------|---------|-------------|
 | data-log-slider-scale | JSON Array | [0,10000] | Defines the min, max, and marker values for the slider |
 | data-log-slider-currency | String | "" | Optional currency symbol to display with values |
+| data-log-slider-start | Number | min value | Sets the initial starting value of the slider |
 
 ## Display Value
 
