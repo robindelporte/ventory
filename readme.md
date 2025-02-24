@@ -12,15 +12,15 @@ A JavaScript plugin that transforms Finsweet's range slider into a logarithmic s
 - Touch and mouse support
 - No additional dependencies required
 
-## Installation
+## Quick Install with CDN
 
-1. Create your range slider in Webflow using Finsweet's Attributes Range Slider
-2. Add the `logarithmic-slider.js` script to your project's custom code section
+Add this script to your project's custom code section:
 
-```javascript
-// Add this code at the end of your body tag
-<script src="path-to/logarithmic-slider.js"></script>
+```html
+<script src="https://cdn.jsdelivr.net/gh/robindelporte/ventory@v1.0.0/logarithmic-slider.js"></script>
 ```
+
+Make sure to add it before the closing `</body>` tag in your project settings.
 
 ## Usage
 
