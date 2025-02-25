@@ -1,235 +1,191 @@
-/**
- * ROI Calculator for Ventory
- * Handles calculations for the inventory management ROI tool
- */
-class ROICalculator {
+class LogarithmicSlider {
   constructor() {
+    this.attributePrefix = 'data-log-slider';
     this.config = {
-      plans: [
-        { name: 'Lite', price: 100, transactions: 500 },
-        { name: 'Basic', price: 350, transactions: 1000 },
-        { name: 'Core', price: 600, transactions: 2000 },
-        { name: 'Business', price: 1250, transactions: 5000 },
-        { name: 'Enterprise Basic', price: 2950, transactions: 15000 },
-        { name: 'Enterprise Advanced', price: 5900, transactions: 30000 }
-      ],
-      selectors: {
-        // Input wrappers
-        skuCountWrapper: '[data-roi="sku-count"]',
-        itemValueWrapper: '[data-roi="item-value"]',
-        salaryWrapper: '[data-roi="salary"]',
-        transactionsWrapper: '[data-roi="transactions"]',
-        
-        // Output elements
-        inventoryValueOutput: '[data-roi="inventory-value"]',
-        savingsOutput: '[data-roi="savings"]',
-        planOutput: '[data-roi="plan"]',
-        planPriceOutput: '[data-roi="plan-price"]',
-        monthlySavingsOutput: '[data-roi="monthly-savings"]'
-      }
-    };
-    
-    this.values = {
-      skuCount: 1000,
-      itemValue: 100,
-      salary: 2000,
-      transactions: 1000
+      wrapperAttr: 'fs-rangeslider-element="wrapper"',
+      handleAttr: 'fs-rangeslider-element="handle"',
+      trackAttr: 'fs-rangeslider-element="track"',
+      fillAttr: 'fs-rangeslider-element="fill"',
+      displayAttr: 'fs-rangeslider-element="display-value"',
+      inputAttr: 'input[type="range"]'
     };
 
-    // Initialiser le calculateur
-    this.init();
+    // Initialiser tous les sliders quand le DOM est chargé
+    document.addEventListener('DOMContentLoaded', () => {
+      const sliders = document.querySelectorAll(`[${this.config.wrapperAttr}]`);
+      sliders.forEach(wrapper => this.setupSlider(wrapper));
+    });
   }
 
-  init() {
-    // Attendre que le DOM soit complètement chargé
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.setup());
-    } else {
-      this.setup();
+  getScaleFromAttribute(wrapper) {
+    const scaleAttr = wrapper.getAttribute(`${this.attributePrefix}-scale`);
+    if (!scaleAttr) return [0, 10000]; // Échelle par défaut
+    try {
+      return JSON.parse(scaleAttr);
+    } catch (e) {
+      console.error('Invalid scale format:', scaleAttr);
+      return [0, 10000];
     }
   }
 
-  setup() {
-    console.log("Setting up ROI Calculator");
+  getCurrencyFromAttribute(wrapper) {
+    return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
+  }
+  
+  getStartValueFromAttribute(wrapper, min, max) {
+    const startAttr = wrapper.getAttribute(`${this.attributePrefix}-start`);
+    if (!startAttr) return min; // Valeur par défaut = min
     
-    // Récupérer les éléments du DOM
-    this.getElements();
-    
-    // Configurer les observateurs pour détecter les changements
-    this.setupObservers();
-    
-    // Faire le calcul initial
-    this.readCurrentValues();
-    this.calculateResults();
-    
-    // Ajouter une mise à jour périodique comme solution de secours
-    setInterval(() => {
-      this.readCurrentValues();
-      this.calculateResults();
-    }, 1000);
+    try {
+      const startValue = parseFloat(startAttr);
+      // S'assurer que la valeur est dans la plage
+      return Math.max(min, Math.min(max, startValue));
+    } catch (e) {
+      console.error('Invalid start value:', startAttr);
+      return min;
+    }
   }
 
-  getElements() {
-    // Obtenir les éléments d'affichage de valeur de slider
-    this.displayElements = {
-      skuCount: this.getDisplayElement(this.config.selectors.skuCountWrapper),
-      itemValue: this.getDisplayElement(this.config.selectors.itemValueWrapper),
-      salary: this.getDisplayElement(this.config.selectors.salaryWrapper),
-      transactions: this.getDisplayElement(this.config.selectors.transactionsWrapper)
+  formatNumber(number) {
+    if (number >= 1000000) {
+      return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (number >= 10000) {
+      return (number / 1000).toFixed(0) + 'K';
+    }
+    if (number >= 1000) {
+      return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    return number.toString();
+  }
+
+  calculateValue(percentage, min, max) {
+    if (percentage <= 0) return min;
+    if (percentage >= 1) return max;
+
+    // Utiliser une échelle logarithmique
+    const minp = 0;
+    const maxp = 1;
+
+    // La courbe logarithmique
+    const minv = Math.log(min || 1);
+    const maxv = Math.log(max);
+
+    // Calcul de l'échelle
+    const scale = (maxv - minv) / (maxp - minp);
+
+    return Math.exp(minv + scale * (percentage - minp));
+  }
+  
+  calculatePosition(value, min, max) {
+    if (value <= min) return 0;
+    if (value >= max) return 1;
+    
+    // Éviter log(0)
+    min = min <= 0 ? 0.1 : min;
+    value = value <= 0 ? 0.1 : value;
+    
+    // Utiliser une échelle logarithmique inverse
+    const minv = Math.log(min);
+    const maxv = Math.log(max);
+    
+    return (Math.log(value) - minv) / (maxv - minv);
+  }
+
+  setupSlider(wrapper) {
+    const elements = {
+      track: wrapper.querySelector(`[${this.config.trackAttr}]`),
+      fill: wrapper.querySelector(`[${this.config.fillAttr}]`),
+      handle: wrapper.querySelector(`[${this.config.handleAttr}]`),
+      display: wrapper.querySelector(`[${this.config.displayAttr}]`),
+      input: wrapper.querySelector(this.config.inputAttr)
     };
 
-    console.log("Display elements:", this.displayElements);
-    
-    // Obtenir les éléments de sortie
-    this.outputElements = {
-      inventoryValue: document.querySelectorAll(this.config.selectors.inventoryValueOutput),
-      savings: document.querySelectorAll(this.config.selectors.savingsOutput),
-      plan: document.querySelectorAll(this.config.selectors.planOutput),
-      planPrice: document.querySelectorAll(this.config.selectors.planPriceOutput),
-      monthlySavings: document.querySelectorAll(this.config.selectors.monthlySavingsOutput)
+    if (!elements.track || !elements.handle) return;
+
+    const scale = this.getScaleFromAttribute(wrapper);
+    const currency = this.getCurrencyFromAttribute(wrapper);
+    const min = scale[0];
+    const max = scale[scale.length - 1];
+    const startValue = this.getStartValueFromAttribute(wrapper, min, max);
+
+    let isDragging = false;
+
+    const updateUI = (percentage) => {
+      percentage = Math.max(0, Math.min(1, percentage));
+      const value = Math.round(this.calculateValue(percentage, min, max));
+      const formattedValue = this.formatNumber(value);
+      
+      elements.handle.style.left = `${percentage * 100}%`;
+      if (elements.fill) elements.fill.style.width = `${percentage * 100}%`;
+      if (elements.display) elements.display.textContent = currency ? `${formattedValue}${currency}` : formattedValue;
+      if (elements.input) elements.input.value = value;
     };
-  }
 
-  getDisplayElement(wrapperSelector) {
-    const wrapper = document.querySelector(wrapperSelector);
-    if (!wrapper) return null;
-    
-    return wrapper.querySelector('[fs-rangeslider-element="display-value"]');
-  }
+    const handleMove = (clientX) => {
+      const rect = elements.track.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      const percentage = x / rect.width;
+      updateUI(percentage);
+    };
 
-  setupObservers() {
-    // Configurer un MutationObserver pour chaque élément d'affichage
-    for (const [property, element] of Object.entries(this.displayElements)) {
-      if (element) {
-        console.log(`Setting up observer for ${property}`);
-        
-        const observer = new MutationObserver((mutations) => {
-          for (const mutation of mutations) {
-            if (mutation.type === 'childList' || mutation.type === 'characterData') {
-              console.log(`Value changed for ${property}: ${element.textContent}`);
-              this.readCurrentValues();
-              this.calculateResults();
-              break;
-            }
-          }
-        });
-        
-        observer.observe(element, {
-          characterData: true,
-          childList: true,
-          subtree: true
-        });
+    elements.track.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      handleMove(e.clientX);
+      document.addEventListener('mousemove', handleDrag);
+    });
+
+    elements.handle.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      e.stopPropagation();
+      document.addEventListener('mousemove', handleDrag);
+    });
+
+    const handleDrag = (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      handleMove(e.clientX);
+    };
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.removeEventListener('mousemove', handleDrag);
       }
-    }
-  }
+    });
 
-  readCurrentValues() {
-    // Lire les valeurs à partir des éléments d'affichage
-    for (const [property, element] of Object.entries(this.displayElements)) {
-      if (element && element.textContent) {
-        const rawValue = element.textContent;
-        console.log(`Reading ${property}: ${rawValue}`);
-        this.values[property] = this.parseValue(rawValue);
+    // Touch events
+    const handleTouch = (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleMove(touch.clientX);
+    };
+
+    elements.track.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      handleTouch(e);
+      document.addEventListener('touchmove', handleTouch);
+    });
+
+    elements.handle.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      e.stopPropagation();
+      document.addEventListener('touchmove', handleTouch);
+    });
+
+    document.addEventListener('touchend', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.removeEventListener('touchmove', handleTouch);
       }
-    }
-    console.log("Current values:", this.values);
-  }
+    });
 
-  parseValue(value) {
-    if (!value) return 0;
-    
-    // Convertir en chaîne et nettoyer (supprimer symboles de devise, etc.)
-    value = value.toString().replace(/[^0-9KMk.,]/g, '');
-    
-    // Gérer les suffixes K et M
-    if (value.includes('K') || value.includes('k')) {
-      return parseFloat(value.replace(/[Kk]/g, '')) * 1000;
-    } else if (value.includes('M') || value.includes('m')) {
-      return parseFloat(value.replace(/[Mm]/g, '')) * 1000000;
-    }
-    
-    // Gérer les séparateurs de milliers
-    return parseFloat(value.replace(/\./g, '').replace(',', '.'));
-  }
-
-  formatCurrency(value) {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0
-    }).format(value);
-  }
-
-  determineMonthlyPlan() {
-    // Trouver le plan approprié basé sur le nombre de transactions
-    for (const plan of this.config.plans) {
-      if (this.values.transactions <= plan.transactions) {
-        return plan;
-      }
-    }
-    
-    // Si nous avons plus de transactions que le plan le plus élevé, utiliser le plan le plus élevé
-    return this.config.plans[this.config.plans.length - 1];
-  }
-
-  calculateResults() {
-    console.log("Calculating with values:", this.values);
-    
-    // Calculer la valeur d'inventaire: Q1 x Q2
-    const inventoryValue = this.values.skuCount * this.values.itemValue;
-    
-    // Le salaire est toujours mensuel
-    const monthlySalary = this.values.salary;
-    
-    // Calculer les économies: (35% x valeur d'inventaire) + (30% x salaire mensuel)
-    const savings = (0.35 * inventoryValue) + (0.3 * monthlySalary);
-    
-    // Déterminer le plan mensuel
-    const plan = this.determineMonthlyPlan();
-    
-    // Calculer les économies mensuelles totales: économies - prix du plan
-    const monthlySavings = savings - plan.price;
-    
-    // Mettre à jour tous les éléments de sortie
-    this.updateOutputs({
-      inventoryValue,
-      savings,
-      plan,
-      monthlySavings
-    });
-  }
-
-  updateOutputs(results) {
-    console.log("Updating outputs:", results);
-    
-    // Mettre à jour la valeur d'inventaire
-    this.outputElements.inventoryValue.forEach(el => {
-      el.textContent = this.formatCurrency(results.inventoryValue);
-    });
-    
-    // Mettre à jour les économies
-    this.outputElements.savings.forEach(el => {
-      el.textContent = this.formatCurrency(results.savings);
-    });
-    
-    // Mettre à jour le nom du plan
-    this.outputElements.plan.forEach(el => {
-      el.textContent = results.plan.name;
-    });
-    
-    // Mettre à jour le prix du plan
-    this.outputElements.planPrice.forEach(el => {
-      el.textContent = this.formatCurrency(results.plan.price);
-    });
-    
-    // Mettre à jour les économies mensuelles
-    this.outputElements.monthlySavings.forEach(el => {
-      el.textContent = this.formatCurrency(results.monthlySavings);
-    });
+    // Initial position based on startValue
+    const startPosition = this.calculatePosition(startValue, min, max);
+    updateUI(startPosition);
   }
 }
 
-// Initialiser le calculateur
-window.addEventListener('load', () => {
-  new ROICalculator();
-});
+// Initialize
+new LogarithmicSlider();
