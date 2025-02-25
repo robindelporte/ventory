@@ -92,6 +92,54 @@ class LogarithmicSlider {
     return (Math.log(value) - minv) / (maxv - minv);
   }
 
+  publishValue(wrapper, value) {
+    // Récupérer l'identifiant du slider (data-roi ou autre attribut)
+    const sliderId = this.getSliderIdentifier(wrapper);
+    
+    // Logger dans la console
+    console.log(`Slider value update - ${sliderId}: ${value}`);
+    
+    // Créer un événement personnalisé
+    const event = new CustomEvent('sliderValueChange', {
+      detail: {
+        id: sliderId,
+        value: value
+      }
+    });
+    document.dispatchEvent(event);
+    
+    // Si dataLayer existe (pour GTM), publier l'événement
+    if (window.dataLayer) {
+      window.dataLayer.push({
+        event: 'sliderValueChange',
+        sliderId: sliderId,
+        sliderValue: value
+      });
+    }
+    
+    // Stocker dans une variable globale
+    if (!window.sliderValues) {
+      window.sliderValues = {};
+    }
+    window.sliderValues[sliderId] = value;
+  }
+  
+  getSliderIdentifier(wrapper) {
+    // Essayer de trouver data-roi ou un autre identifiant
+    for (const attr of wrapper.attributes) {
+      if (attr.name.startsWith('data-roi')) {
+        return attr.value || attr.name.replace('data-', '');
+      }
+    }
+    
+    // Essayer data-slider-id
+    const sliderId = wrapper.getAttribute('data-slider-id');
+    if (sliderId) return sliderId;
+    
+    // Si aucun identifiant n'est trouvé, utiliser une valeur par défaut
+    return 'unnamed-slider';
+  }
+
   setupSlider(wrapper) {
     const elements = {
       track: wrapper.querySelector(`[${this.config.trackAttr}]`),
