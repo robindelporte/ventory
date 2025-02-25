@@ -68,11 +68,11 @@
   
   // Mettre en place une vérification périodique
   function setupPolling() {
-    // Vérifier les valeurs toutes les 500ms
+    // Vérifier les valeurs toutes les 100ms pour une réactivité plus rapide
     setInterval(function() {
       readValues();
       calculate();
-    }, 500);
+    }, 100);
   }
   
   // Lire les valeurs actuelles
