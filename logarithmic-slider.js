@@ -32,7 +32,7 @@ class LogarithmicSlider {
     return wrapper.getAttribute(`${this.attributePrefix}-currency`) || '';
   }
   
-  getStartValueFromAttribute(wrapper, min, max) {
+  getStartValueFromAttribute(wrapper, min, max, markers) {
     const startAttr = wrapper.getAttribute(`${this.attributePrefix}-start`);
     if (!startAttr) return min; // Valeur par défaut = min
     
@@ -59,85 +59,72 @@ class LogarithmicSlider {
     return number.toString();
   }
 
-  calculateValue(percentage, min, max) {
-    if (percentage <= 0) return min;
-    if (percentage >= 1) return max;
-
-    // Utiliser une échelle logarithmique
-    const minp = 0;
-    const maxp = 1;
-
-    // La courbe logarithmique
-    const minv = Math.log(min || 1);
-    const maxv = Math.log(max);
-
-    // Calcul de l'échelle
-    const scale = (maxv - minv) / (maxp - minp);
-
-    return Math.exp(minv + scale * (percentage - minp));
+  // Nouvelle méthode pour calculer la valeur basée sur les marqueurs
+  calculateValueFromMarkers(percentage, markers) {
+    if (percentage <= 0) return markers[0];
+    if (percentage >= 1) return markers[markers.length - 1];
+    
+    // Trouver l'index correspondant à la position
+    const index = percentage * (markers.length - 1);
+    const lowerIndex = Math.floor(index);
+    const upperIndex = Math.ceil(index);
+    
+    // Si on est pile sur un marqueur
+    if (lowerIndex === upperIndex) return markers[lowerIndex];
+    
+    // Interpolation entre deux marqueurs
+    const lowerValue = markers[lowerIndex];
+    const upperValue = markers[upperIndex];
+    const weight = index - lowerIndex;
+    
+    // Interpolation logarithmique
+    if (lowerValue <= 0) return lowerValue + weight * (upperValue - lowerValue);
+    
+    // Calculer une progression logarithmique entre les deux marqueurs
+    const logLower = Math.log(lowerValue);
+    const logUpper = Math.log(upperValue);
+    return Math.exp(logLower + weight * (logUpper - logLower));
   }
-  
-  calculatePosition(value, min, max) {
+
+  // Nouvelle méthode pour calculer la position basée sur les marqueurs
+  calculatePositionFromMarkers(value, markers) {
+    const min = markers[0];
+    const max = markers[markers.length - 1];
+    
     if (value <= min) return 0;
     if (value >= max) return 1;
     
-    // Éviter log(0)
-    min = min <= 0 ? 0.1 : min;
-    value = value <= 0 ? 0.1 : value;
+    // Trouver les deux marqueurs les plus proches
+    let lowerIndex = 0;
+    let upperIndex = markers.length - 1;
     
-    // Utiliser une échelle logarithmique inverse
-    const minv = Math.log(min);
-    const maxv = Math.log(max);
-    
-    return (Math.log(value) - minv) / (maxv - minv);
-  }
-
-  publishValue(wrapper, value) {
-    // Récupérer l'identifiant du slider (data-roi ou autre attribut)
-    const sliderId = this.getSliderIdentifier(wrapper);
-    
-    // Logger dans la console
-    console.log(`Slider value update - ${sliderId}: ${value}`);
-    
-    // Créer un événement personnalisé
-    const event = new CustomEvent('sliderValueChange', {
-      detail: {
-        id: sliderId,
-        value: value
-      }
-    });
-    document.dispatchEvent(event);
-    
-    // Si dataLayer existe (pour GTM), publier l'événement
-    if (window.dataLayer) {
-      window.dataLayer.push({
-        event: 'sliderValueChange',
-        sliderId: sliderId,
-        sliderValue: value
-      });
-    }
-    
-    // Stocker dans une variable globale
-    if (!window.sliderValues) {
-      window.sliderValues = {};
-    }
-    window.sliderValues[sliderId] = value;
-  }
-  
-  getSliderIdentifier(wrapper) {
-    // Essayer de trouver data-roi ou un autre identifiant
-    for (const attr of wrapper.attributes) {
-      if (attr.name.startsWith('data-roi')) {
-        return attr.value || attr.name.replace('data-', '');
+    for (let i = 0; i < markers.length - 1; i++) {
+      if (value >= markers[i] && value <= markers[i + 1]) {
+        lowerIndex = i;
+        upperIndex = i + 1;
+        break;
       }
     }
     
-    // Essayer data-slider-id
-    const sliderId = wrapper.getAttribute('data-slider-id');
-    if (sliderId) return sliderId;
+    // Interpolation logarithmique
+    const lowerValue = markers[lowerIndex];
+    const upperValue = markers[upperIndex];
     
-    // Si aucun identifiant n'est trouvé, utiliser une valeur par défaut
-    return 'unnamed-slider';
+    if (lowerValue <= 0) {
+      // Interpolation linéaire si les valeurs sont négatives ou nulles
+      const valueOffset = value - lowerValue;
+      const range = upperValue - lowerValue;
+      const relativePosition = valueOffset / range;
+      return (lowerIndex + relativePosition) / (markers.length - 1);
+    }
+    
+    // Calculer la position avec interpolation logarithmique
+    const logValue = Math.log(value);
+    const logLower = Math.log(lowerValue);
+    const logUpper = Math.log(upperValue);
+    const relativePosition = (logValue - logLower) / (logUpper - logLower);
+    
+    return (lowerIndex + relativePosition) / (markers.length - 1);
   }
 
   setupSlider(wrapper) {
@@ -151,23 +138,26 @@ class LogarithmicSlider {
 
     if (!elements.track || !elements.handle) return;
 
-    const scale = this.getScaleFromAttribute(wrapper);
+    const markers = this.getScaleFromAttribute(wrapper);
     const currency = this.getCurrencyFromAttribute(wrapper);
-    const min = scale[0];
-    const max = scale[scale.length - 1];
-    const startValue = this.getStartValueFromAttribute(wrapper, min, max);
+    const min = markers[0];
+    const max = markers[markers.length - 1];
+    const startValue = this.getStartValueFromAttribute(wrapper, min, max, markers);
 
     let isDragging = false;
 
     const updateUI = (percentage) => {
       percentage = Math.max(0, Math.min(1, percentage));
-      const value = Math.round(this.calculateValue(percentage, min, max));
+      const value = Math.round(this.calculateValueFromMarkers(percentage, markers));
       const formattedValue = this.formatNumber(value);
       
       elements.handle.style.left = `${percentage * 100}%`;
       if (elements.fill) elements.fill.style.width = `${percentage * 100}%`;
       if (elements.display) elements.display.textContent = currency ? `${formattedValue}${currency}` : formattedValue;
       if (elements.input) elements.input.value = value;
+      
+      // Publier la valeur pour le calculateur ROI
+      this.publishValue(wrapper, value);
     };
 
     const handleMove = (clientX) => {
@@ -230,8 +220,48 @@ class LogarithmicSlider {
     });
 
     // Initial position based on startValue
-    const startPosition = this.calculatePosition(startValue, min, max);
+    const startPosition = this.calculatePositionFromMarkers(startValue, markers);
     updateUI(startPosition);
+  }
+  
+  // Pour communiquer avec le calculateur ROI
+  getSliderIdentifier(wrapper) {
+    // Essayer de trouver data-roi ou un autre identifiant
+    for (const attr of wrapper.attributes) {
+      if (attr.name.startsWith('data-roi')) {
+        return attr.value || attr.name.substring(9); // Enlever 'data-roi='
+      }
+    }
+    
+    // Essayer data-slider-id
+    const sliderId = wrapper.getAttribute('data-slider-id');
+    if (sliderId) return sliderId;
+    
+    // Si aucun identifiant n'est trouvé
+    return 'unnamed-slider';
+  }
+  
+  publishValue(wrapper, value) {
+    // Récupérer l'identifiant du slider
+    const sliderId = this.getSliderIdentifier(wrapper);
+    
+    // Logger dans la console
+    console.log(`Slider value update - ${sliderId}: ${value}`);
+    
+    // Stocker dans une variable globale
+    if (!window.sliderValues) {
+      window.sliderValues = {};
+    }
+    window.sliderValues[sliderId] = value;
+    
+    // Créer un événement personnalisé
+    const event = new CustomEvent('sliderValueChange', {
+      detail: {
+        id: sliderId,
+        value: value
+      }
+    });
+    document.dispatchEvent(event);
   }
 }
 
