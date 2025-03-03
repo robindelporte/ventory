@@ -16,7 +16,7 @@
       inventoryValueOutput: '[data-roi="inventory-value"]',
       planOutput: '[data-roi="plan"]',
       planPriceOutput: '[data-roi="plan-price"]',
-      monthlySavingsOutput: '[data-roi="monthly-savings"]',
+      monthlySavingsOutput: '[data-roi="savings"]',
       buttonOutput: '[data-roi="action-button"]'
     }
   };
@@ -162,7 +162,8 @@
     
     // Mettre à jour les économies mensuelles
     elements.outputs.monthlySavings.forEach(function(el) {
-      el.textContent = formatCurrency(monthlySavings);
+      // Afficher "Contact Sales" si on est sur le dernier plan, sinon afficher le montant
+      el.textContent = values.skuCount > 7500 ? 'Contact Sales' : formatCurrency(monthlySavings);
     });
     
     // Mettre à jour le texte du bouton
