@@ -11,13 +11,15 @@
     selectors: {
       skuCountWrapper: '[data-roi="sku-count"]',
       itemValueWrapper: '[data-roi="item-value"]',
-      locationsWrapper: '[data-roi="locations"]',
+      salaryWrapper: '[data-roi="salary"]',
       
       inventoryValueOutput: '[data-roi="inventory-value"]',
       savingsOutput: '[data-roi="savings"]',
+      monthlySavingsOutput: '[data-roi="monthly-savings"]',
       planOutput: '[data-roi="plan"]',
       planPriceOutput: '[data-roi="plan-price"]',
-      buttonOutput: '[data-roi="action-button"]'
+      buttonOutput: '[data-roi="action-button"]',
+      trialButtonOutput: 'a[href="/get-in-touch"]'
     }
   };
   
@@ -25,7 +27,7 @@
   var values = {
     skuCount: 998,
     itemValue: 100,
-    locations: 100
+    salary: 2000
   };
   
   // Éléments DOM
@@ -49,14 +51,16 @@
     // Éléments d'affichage des sliders
     elements.displays.skuCount = document.querySelector(config.selectors.skuCountWrapper + ' [fs-rangeslider-element="display-value"]');
     elements.displays.itemValue = document.querySelector(config.selectors.itemValueWrapper + ' [fs-rangeslider-element="display-value"]');
-    elements.displays.locations = document.querySelector(config.selectors.locationsWrapper + ' [fs-rangeslider-element="display-value"]');
+    elements.displays.salary = document.querySelector(config.selectors.salaryWrapper + ' [fs-rangeslider-element="display-value"]');
     
     // Éléments de sortie
     elements.outputs.inventoryValue = document.querySelectorAll(config.selectors.inventoryValueOutput);
     elements.outputs.savings = document.querySelectorAll(config.selectors.savingsOutput);
+    elements.outputs.monthlySavings = document.querySelectorAll(config.selectors.monthlySavingsOutput);
     elements.outputs.plan = document.querySelectorAll(config.selectors.planOutput);
     elements.outputs.planPrice = document.querySelectorAll(config.selectors.planPriceOutput);
     elements.outputs.button = document.querySelectorAll(config.selectors.buttonOutput);
+    elements.outputs.trialButton = document.querySelectorAll(config.selectors.trialButtonOutput);
     
     console.log("DOM Elements:", elements);
   }
@@ -80,8 +84,8 @@
       values.itemValue = parseValue(elements.displays.itemValue.textContent);
     }
     
-    if (elements.displays.locations) {
-      values.locations = parseValue(elements.displays.locations.textContent);
+    if (elements.displays.salary) {
+      values.salary = parseValue(elements.displays.salary.textContent);
     }
     
     console.log("Current values:", values);
@@ -136,8 +140,8 @@
     // Déterminer le plan
     var plan = determineMonthlyPlan(values.skuCount);
     
-    // Calcul simplifié des économies mensuelles (à adapter selon vos besoins)
-    var monthlySavings = values.skuCount > 0 ? Math.round(values.skuCount * 0.35) : 0;
+    // Calcul des économies mensuelles - 35% de la valeur d'inventaire + 30% du salaire
+    var monthlySavings = Math.round((0.35 * inventoryValue) + (0.3 * values.salary));
     
     // Mettre à jour l'interface
     updateOutputs(inventoryValue, plan, monthlySavings);
@@ -145,9 +149,16 @@
   
   // Mettre à jour les sorties
   function updateOutputs(inventoryValue, plan, monthlySavings) {
+    var needSalesContact = values.skuCount > 7500;
+    
     // Mettre à jour la valeur d'inventaire
     elements.outputs.inventoryValue.forEach(function(el) {
       el.textContent = formatCurrency(inventoryValue);
+    });
+    
+    // Mettre à jour les économies (utiliser le calcul complet)
+    elements.outputs.savings.forEach(function(el) {
+      el.textContent = formatCurrency(monthlySavings);
     });
     
     // Mettre à jour le nom du plan
@@ -161,14 +172,16 @@
     });
     
     // Mettre à jour les économies mensuelles
-    elements.outputs.savings.forEach(function(el) {
-      // Afficher "Contact Sales" si on est sur le dernier plan, sinon afficher le montant
-      el.textContent = values.skuCount > 7500 ? 'Contact Sales' : formatCurrency(monthlySavings);
+    elements.outputs.monthlySavings.forEach(function(el) {
+      el.textContent = needSalesContact ? 'Contact Sales' : formatCurrency(monthlySavings - plan.price);
     });
     
-    // Mettre à jour le texte du bouton
-    elements.outputs.button.forEach(function(el) {
-      el.textContent = values.skuCount <= 7500 ? 'Start Your Free Trial' : 'Contact Sales';
+    // Mettre à jour le texte du bouton de démarrage d'essai
+    elements.outputs.trialButton.forEach(function(el) {
+      var textElement = el.querySelector('.text-btn');
+      if (textElement) {
+        textElement.textContent = needSalesContact ? 'Contact Sales' : 'Start your free trial';
+      }
     });
   }
   
