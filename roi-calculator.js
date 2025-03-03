@@ -171,7 +171,8 @@
     
     // Mettre à jour le nom du plan
     elements.outputs.plan.forEach(function(el) {
-      el.textContent = plan.name;
+      // Si c'est le plan "Speak to our sales team", laisser vide
+      el.textContent = (plan.name === 'Speak to our sales team') ? '' : plan.name;
     });
     
     // Mettre à jour le prix du plan
