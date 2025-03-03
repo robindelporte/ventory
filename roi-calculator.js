@@ -20,6 +20,10 @@
       planPriceOutput: '[data-roi="plan-price"]',
       buttonOutput: '[data-roi="action-button"]',
       trialButtonOutput: 'a[href="/get-in-touch"]'
+    },
+    urls: {
+      freeTrial: 'https://app.ventory.io/signup',
+      contactSales: 'https://www.ventory.io/get-in-touch'
     }
   };
   
@@ -140,15 +144,19 @@
     // Déterminer le plan
     var plan = determineMonthlyPlan(values.skuCount);
     
-    // Calcul des économies mensuelles - 35% de la valeur d'inventaire + 30% du salaire
-    var monthlySavings = Math.round((0.35 * inventoryValue) + (0.3 * values.salary));
+    // Calcul des économies selon la formule de la cliente:
+    // (35% x valeur totale du stock) + (30% x salaire mensuel)
+    var savings = (0.35 * inventoryValue) + (0.3 * values.salary);
+    
+    // Économies mensuelles = économies - prix du plan
+    var monthlySavings = savings - plan.price;
     
     // Mettre à jour l'interface
-    updateOutputs(inventoryValue, plan, monthlySavings);
+    updateOutputs(inventoryValue, plan, savings, monthlySavings);
   }
   
   // Mettre à jour les sorties
-  function updateOutputs(inventoryValue, plan, monthlySavings) {
+  function updateOutputs(inventoryValue, plan, savings, monthlySavings) {
     var needSalesContact = values.skuCount > 7500;
     
     // Mettre à jour la valeur d'inventaire
@@ -156,9 +164,9 @@
       el.textContent = formatCurrency(inventoryValue);
     });
     
-    // Mettre à jour les économies (utiliser le calcul complet)
+    // Mettre à jour les économies (le montant total d'économies)
     elements.outputs.savings.forEach(function(el) {
-      el.textContent = formatCurrency(monthlySavings);
+      el.textContent = formatCurrency(savings);
     });
     
     // Mettre à jour le nom du plan
@@ -173,15 +181,19 @@
     
     // Mettre à jour les économies mensuelles
     elements.outputs.monthlySavings.forEach(function(el) {
-      el.textContent = needSalesContact ? 'Contact Sales' : formatCurrency(monthlySavings - plan.price);
+      el.textContent = needSalesContact ? 'Contact Sales' : formatCurrency(monthlySavings);
     });
     
-    // Mettre à jour le texte du bouton de démarrage d'essai
+    // Mettre à jour le texte et l'URL du bouton de démarrage d'essai
     elements.outputs.trialButton.forEach(function(el) {
+      // Mettre à jour le texte
       var textElement = el.querySelector('.text-btn');
       if (textElement) {
         textElement.textContent = needSalesContact ? 'Contact Sales' : 'Start your free trial';
       }
+      
+      // Mettre à jour l'URL
+      el.href = needSalesContact ? config.urls.contactSales : config.urls.freeTrial;
     });
   }
   
