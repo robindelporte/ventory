@@ -14,9 +14,9 @@
       locationsWrapper: '[data-roi="locations"]',
       
       inventoryValueOutput: '[data-roi="inventory-value"]',
+      savingsOutput: '[data-roi="savings"]',
       planOutput: '[data-roi="plan"]',
       planPriceOutput: '[data-roi="plan-price"]',
-      monthlySavingsOutput: '[data-roi="savings"]',
       buttonOutput: '[data-roi="action-button"]'
     }
   };
@@ -53,9 +53,9 @@
     
     // Éléments de sortie
     elements.outputs.inventoryValue = document.querySelectorAll(config.selectors.inventoryValueOutput);
+    elements.outputs.savings = document.querySelectorAll(config.selectors.savingsOutput);
     elements.outputs.plan = document.querySelectorAll(config.selectors.planOutput);
     elements.outputs.planPrice = document.querySelectorAll(config.selectors.planPriceOutput);
-    elements.outputs.monthlySavings = document.querySelectorAll(config.selectors.monthlySavingsOutput);
     elements.outputs.button = document.querySelectorAll(config.selectors.buttonOutput);
     
     console.log("DOM Elements:", elements);
@@ -161,7 +161,7 @@
     });
     
     // Mettre à jour les économies mensuelles
-    elements.outputs.monthlySavings.forEach(function(el) {
+    elements.outputs.savings.forEach(function(el) {
       // Afficher "Contact Sales" si on est sur le dernier plan, sinon afficher le montant
       el.textContent = values.skuCount > 7500 ? 'Contact Sales' : formatCurrency(monthlySavings);
     });
