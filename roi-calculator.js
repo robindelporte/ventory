@@ -1,35 +1,31 @@
-// ROI Calculator Simple Version
+// ROI Calculator for Webflow
 (function() {
   // Configuration
   var config = {
     plans: [
-      { name: 'Lite', price: 100, transactions: 500 },
-      { name: 'Basic', price: 350, transactions: 1000 },
-      { name: 'Core', price: 600, transactions: 2000 },
-      { name: 'Business', price: 1250, transactions: 5000 },
-      { name: 'Enterprise Basic', price: 2950, transactions: 15000 },
-      { name: 'Enterprise Advanced', price: 5900, transactions: 30000 }
+      { name: 'Light plan', price: 49, maxSkus: 500 },
+      { name: 'Plus plan', price: 149, maxSkus: 2000 },
+      { name: 'Max plan', price: 299, maxSkus: 7500 },
+      { name: 'Speak to our sales team', price: 0, maxSkus: Infinity }
     ],
     selectors: {
       skuCountWrapper: '[data-roi="sku-count"]',
       itemValueWrapper: '[data-roi="item-value"]',
-      salaryWrapper: '[data-roi="salary"]',
-      transactionsWrapper: '[data-roi="transactions"]',
+      locationsWrapper: '[data-roi="locations"]',
       
       inventoryValueOutput: '[data-roi="inventory-value"]',
-      savingsOutput: '[data-roi="savings"]',
       planOutput: '[data-roi="plan"]',
       planPriceOutput: '[data-roi="plan-price"]',
-      monthlySavingsOutput: '[data-roi="monthly-savings"]'
+      monthlySavingsOutput: '[data-roi="monthly-savings"]',
+      buttonOutput: '[data-roi="action-button"]'
     }
   };
   
   // Valeurs actuelles
   var values = {
-    skuCount: 1000,
+    skuCount: 998,
     itemValue: 100,
-    salary: 2000,
-    transactions: 1000
+    locations: 100
   };
   
   // Éléments DOM
@@ -53,15 +49,14 @@
     // Éléments d'affichage des sliders
     elements.displays.skuCount = document.querySelector(config.selectors.skuCountWrapper + ' [fs-rangeslider-element="display-value"]');
     elements.displays.itemValue = document.querySelector(config.selectors.itemValueWrapper + ' [fs-rangeslider-element="display-value"]');
-    elements.displays.salary = document.querySelector(config.selectors.salaryWrapper + ' [fs-rangeslider-element="display-value"]');
-    elements.displays.transactions = document.querySelector(config.selectors.transactionsWrapper + ' [fs-rangeslider-element="display-value"]');
+    elements.displays.locations = document.querySelector(config.selectors.locationsWrapper + ' [fs-rangeslider-element="display-value"]');
     
     // Éléments de sortie
     elements.outputs.inventoryValue = document.querySelectorAll(config.selectors.inventoryValueOutput);
-    elements.outputs.savings = document.querySelectorAll(config.selectors.savingsOutput);
     elements.outputs.plan = document.querySelectorAll(config.selectors.planOutput);
     elements.outputs.planPrice = document.querySelectorAll(config.selectors.planPriceOutput);
     elements.outputs.monthlySavings = document.querySelectorAll(config.selectors.monthlySavingsOutput);
+    elements.outputs.button = document.querySelectorAll(config.selectors.buttonOutput);
     
     console.log("DOM Elements:", elements);
   }
@@ -85,12 +80,8 @@
       values.itemValue = parseValue(elements.displays.itemValue.textContent);
     }
     
-    if (elements.displays.salary) {
-      values.salary = parseValue(elements.displays.salary.textContent);
-    }
-    
-    if (elements.displays.transactions) {
-      values.transactions = parseValue(elements.displays.transactions.textContent);
+    if (elements.displays.locations) {
+      values.locations = parseValue(elements.displays.locations.textContent);
     }
     
     console.log("Current values:", values);
@@ -123,16 +114,15 @@
     }).format(value);
   }
   
-  // Déterminer le plan mensuel
-  function determineMonthlyPlan() {
+  // Déterminer le plan mensuel en fonction du nombre de SKUs
+  function determineMonthlyPlan(skus) {
     for (var i = 0; i < config.plans.length; i++) {
-      var plan = config.plans[i];
-      if (values.transactions <= plan.transactions) {
-        return plan;
+      if (skus <= config.plans[i].maxSkus) {
+        return config.plans[i];
       }
     }
     
-    // Si plus de transactions que le plus grand plan
+    // Si plus de SKUs que prévu
     return config.plans[config.plans.length - 1];
   }
   
@@ -143,29 +133,21 @@
     // Valeur d'inventaire = nombre d'articles * valeur par article
     var inventoryValue = values.skuCount * values.itemValue;
     
-    // Économies = (35% * valeur d'inventaire) + (30% * salaire mensuel)
-    var savings = (0.35 * inventoryValue) + (0.3 * values.salary);
-    
     // Déterminer le plan
-    var plan = determineMonthlyPlan();
+    var plan = determineMonthlyPlan(values.skuCount);
     
-    // Économies mensuelles = économies - prix du plan
-    var monthlySavings = savings - plan.price;
+    // Calcul simplifié des économies mensuelles (à adapter selon vos besoins)
+    var monthlySavings = values.skuCount > 0 ? Math.round(values.skuCount * 0.35) : 0;
     
     // Mettre à jour l'interface
-    updateOutputs(inventoryValue, savings, plan, monthlySavings);
+    updateOutputs(inventoryValue, plan, monthlySavings);
   }
   
   // Mettre à jour les sorties
-  function updateOutputs(inventoryValue, savings, plan, monthlySavings) {
+  function updateOutputs(inventoryValue, plan, monthlySavings) {
     // Mettre à jour la valeur d'inventaire
     elements.outputs.inventoryValue.forEach(function(el) {
       el.textContent = formatCurrency(inventoryValue);
-    });
-    
-    // Mettre à jour les économies
-    elements.outputs.savings.forEach(function(el) {
-      el.textContent = formatCurrency(savings);
     });
     
     // Mettre à jour le nom du plan
@@ -175,12 +157,17 @@
     
     // Mettre à jour le prix du plan
     elements.outputs.planPrice.forEach(function(el) {
-      el.textContent = formatCurrency(plan.price);
+      el.textContent = plan.price > 0 ? formatCurrency(plan.price) : 'Contact Sales';
     });
     
     // Mettre à jour les économies mensuelles
     elements.outputs.monthlySavings.forEach(function(el) {
       el.textContent = formatCurrency(monthlySavings);
+    });
+    
+    // Mettre à jour le texte du bouton
+    elements.outputs.button.forEach(function(el) {
+      el.textContent = values.skuCount <= 7500 ? 'Start Your Free Trial' : 'Contact Sales';
     });
   }
   
