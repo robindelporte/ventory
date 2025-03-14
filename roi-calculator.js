@@ -12,6 +12,7 @@
       skuCountWrapper: '[data-roi="sku-count"]',
       itemValueWrapper: '[data-roi="item-value"]',
       salaryWrapper: '[data-roi="salary"]',
+      operatorsWrapper: '[data-roi="operators"]',
       
       inventoryValueOutput: '[data-roi="inventory-value"]',
       savingsOutput: '[data-roi="savings"]',
@@ -31,7 +32,8 @@
   var values = {
     skuCount: 998,
     itemValue: 100,
-    salary: 2000
+    salary: 2000,
+    operators: 1   // Nombre d'opérateurs par défaut
   };
   
   // Éléments DOM
@@ -56,6 +58,7 @@
     elements.displays.skuCount = document.querySelector(config.selectors.skuCountWrapper + ' [fs-rangeslider-element="display-value"]');
     elements.displays.itemValue = document.querySelector(config.selectors.itemValueWrapper + ' [fs-rangeslider-element="display-value"]');
     elements.displays.salary = document.querySelector(config.selectors.salaryWrapper + ' [fs-rangeslider-element="display-value"]');
+    elements.displays.operators = document.querySelector(config.selectors.operatorsWrapper + ' [fs-rangeslider-element="display-value"]');
     
     // Éléments de sortie
     elements.outputs.inventoryValue = document.querySelectorAll(config.selectors.inventoryValueOutput);
@@ -90,6 +93,10 @@
     
     if (elements.displays.salary) {
       values.salary = parseValue(elements.displays.salary.textContent);
+    }
+    
+    if (elements.displays.operators) {
+      values.operators = parseValue(elements.displays.operators.textContent);
     }
     
     console.log("Current values:", values);
@@ -144,9 +151,10 @@
     // Déterminer le plan
     var plan = determineMonthlyPlan(values.skuCount);
     
-    // Calcul des économies selon la formule de la cliente:
-    // (35% x valeur totale du stock) + (30% x salaire mensuel)
-    var savings = (0.35 * inventoryValue) + (0.3 * values.salary);
+    // Nouvelle formule de calcul des économies:
+    // (35% x valeur totale du stock) + (30% x salaire mensuel x nombre d'opérateurs)
+    var totalSalary = values.salary * values.operators;
+    var savings = (0.35 * inventoryValue) + (0.3 * totalSalary);
     
     // Économies mensuelles = économies - prix du plan
     var monthlySavings = savings - plan.price;
