@@ -152,9 +152,10 @@
     var plan = determineMonthlyPlan(values.skuCount);
     
     // Nouvelle formule de calcul des économies:
-    // (35% x valeur totale du stock) + (30% x salaire mensuel x nombre d'opérateurs)
+    // (35% x valeur totale du stock x 20%) + (30% x salaire mensuel x nombre d'opérateurs)
     var totalSalary = values.salary * values.operators;
-    var savings = (0.35 * inventoryValue) + (0.3 * totalSalary);
+    var adjustedInventoryValue = inventoryValue * 0.20; // Prendre 20% de la valeur du stock
+    var savings = (0.35 * adjustedInventoryValue) + (0.3 * totalSalary);
     
     // Économies mensuelles = économies - prix du plan
     var monthlySavings = savings - plan.price;
